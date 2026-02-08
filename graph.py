@@ -272,7 +272,7 @@ def cost(label,edge,nbClasses):
     _,vector,_=label
     classe=ord(edge.label[1])-65
     dist=edge.label[0]
-    return [dist + vector[i] for i in range(nbClasses) if i<=classe else vector[i] ]
+    return [dist + vector[i]  if i<=classe else vector[i] for i in range(nbClasses) ]
 
 """
 def removeMin(T):
