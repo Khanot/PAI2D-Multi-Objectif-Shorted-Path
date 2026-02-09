@@ -34,6 +34,7 @@ class Vertex:
             _, vectorTemp, _=self.liste[direction][i]
             if vectorComp(vector,vectorTemp):
                 self.liste[direction]=self.liste[direction][:i]+self.liste[direction][i+1:]
+                i-=1
             isDominated= isDominated or vectorComp(vectorTemp,vector)
         if not isDominated:
             self.liste[direction].append(label)
@@ -210,16 +211,16 @@ class Graph:
         return [e for e in self.adj[vertex]]
     
     def DijkstraMultiObjBidirectionnel(self,origin: Vertex, dest:Vertex):
-        T=[set(),set()]
-        Lres=set()
+        T=[[],[]]
+        Lres=[]
 
-        originLabel=[origin,[0 for _ in self.nbClasses],None]
+        originLabel=(origin,[0 for _ in range(self.nbClasses)],None)
         origin.addLabel(originLabel,0)
-        T[0].add(originLabel)
+        T[0].append(originLabel)
 
-        destLabel=[dest,[0 for _ in self.nbClasses],None]
+        destLabel=(dest,[0 for _ in range(self.nbClasses)],None)
         dest.addLabel(destLabel,1)
-        T[1].add(destLabel)
+        T[1].append(destLabel)
 
         d=1
         while not (stop(T,Lres)):
@@ -230,16 +231,28 @@ class Graph:
             neighbours=self.getNeighbours(owner)
             for e in neighbours:
                 n=e.vertices[1]
-                newLabel=[e.vertices[1], cost(label,e,self.nbClasses) ,label]
+                newLabel=(e.vertices[1], cost(label,e,self.nbClasses) ,label)
                 if not compListe(newLabel, n.liste[d]):
                     n.addLabel(newLabel,d)
-                    T[d].add(newLabel)
+                    T[d].append(newLabel)
                     if n.liste[1-d]!=[]:
                         comb=combine(newLabel,n.liste[1-d])
                         for c in comb:
                             addResults(c,Lres)
 
         return Lres
+    def labelToString(self,label):
+        res="("+label[0].label+","+str(label[1])
+        if label[2]==None:
+            return res+"None)"
+        else:
+            return res+self.labelToString(label[2])+")"
+    def reconstruireChemin(self, L):
+        res="("
+        for l in L:
+            res+=self.labelToString(l)+"------"
+        return res+")"
+    
 
 
 def addResults(label, Lres):
@@ -263,16 +276,16 @@ def combine(label,labelListe):
     """
     res=[]
     n,l,nprime=label
-    for i in range(labelListe):
+    for i in range(len(labelListe)):
         _,ll,_=labelListe[i]
         res.append([l[j]+ll[j] for j in range(len(l))])
-    return [n,res[i],nprime for i in range(len(res))]
+    return [(n,res[i],nprime) for i in range(len(res))]
     
 def cost(label,edge,nbClasses):
     _,vector,_=label
     classe=ord(edge.label[1])-65
     dist=edge.label[0]
-    return [dist + vector[i]  if i<=classe else vector[i] for i in range(nbClasses) ]
+    return [dist + vector[i]  if i<=classe else vector[i] for i in range(nbClasses)]
 
 """
 def removeMin(T):
@@ -317,7 +330,7 @@ def stop(T,Lres):
 def vectorComp(v1,v2):
 
     "Returns True if v1 domainates v2"
-    return np.all(v1-v2>=0)
+    return np.all(np.array(v1)-np.array(v2)>=0)
        
     
 
@@ -336,9 +349,14 @@ def generate_random_graph(name,nbVertex,probaEdge,nbClasses):
     return G
 
 
-print((np.array([0,1,0])==0))
-#G=generate_random_graph("test",5,0.5,5)
-#G.print_al()
+
+
+
+
+G=generate_random_graph("test",10,0.5,5)
+G.print_al()
+res=G.DijkstraMultiObjBidirectionnel(next(iter(G.vertices)),next(iter(G.vertices)))
+print(G.reconstruireChemin(res))
 
 
 
