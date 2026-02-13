@@ -54,7 +54,7 @@ class Graph:
         self.name: str = name
         self.vertices: set[Vertex] = set()
         self.edges: set[Edge] = set()
-        self.adj: Dict[Vertex, set[Edge]] = dict()
+        self.adj: [Dict[Vertex, set[Edge]],Dict[Vertex, set[Edge]]] = [dict(),dict()]
         self.nbClasses=nbClasses
 
     def copy(self): 
@@ -78,7 +78,8 @@ class Graph:
         v = Vertex(label)
         if v not in self.vertices:
             self.vertices.add(v)
-            self.adj[v]=set()
+            self.adj[0][v]=set()
+            self.adj[1][v]=set()
         return v 
 
     def add_edge(self, labelv1: str, labelv2: str,dist: int, classe: str) -> None:
@@ -97,7 +98,8 @@ class Graph:
             return #pas d'arêtes en double 
         e=Edge(vertex1,vertex2,dist,classe)
         self.edges.add(e)
-        self.adj[vertex1].add(e)
+        self.adj[0][vertex1].add(e)
+        self.adj[1][vertex2].add(e)
         return 
 
     def delete_vertex(self, l: str) -> None:
@@ -207,8 +209,8 @@ class Graph:
                     file.append(elem)
 
         return []
-    def getNeighbours(self,vertex):
-        return [e for e in self.adj[vertex]]
+    def getNeighbours(self,vertex,dir):
+        return [e for e in self.adj[dir][vertex]]
     
     def DijkstraMultiObjBidirectionnel(self,origin: Vertex, dest:Vertex):
         T=[[],[]]
@@ -228,7 +230,7 @@ class Graph:
             label=T[d][0]
             T[d]=T[d][1:]
             owner=label[0]
-            neighbours=self.getNeighbours(owner)
+            neighbours=self.getNeighbours(owner,d)
             for e in neighbours:
                 n=e.vertices[1]
                 newLabel=(e.vertices[1], cost(label,e,self.nbClasses) ,label)
