@@ -94,7 +94,7 @@ class Graph:
         if vertex1 not in self.vertices or vertex2 not in self.vertices:
             raise ValueError("vertex1 ou vertex2 ne sont pas des sommets du graphe.")
 
-        if vertex2 in self.adj[vertex1]:
+        if vertex2 in self.adj[0][vertex1]:
             return #pas d'arêtes en double 
         e=Edge(vertex1,vertex2,dist,classe)
         self.edges.add(e)
@@ -146,9 +146,9 @@ class Graph:
         Affiche le tableau des listes d'adjacence du graphe
         """
         res=""
-        for v in self.adj.keys():
+        for v in self.adj[0].keys():
             res=str(v.label)+" -> ["
-            for e in self.adj[v]:
+            for e in self.adj[0][v]:
                 res+=e.vertices[1].label+"("+str(e.label[0])+","+e.label[1]+"), "
             print(res[:-2]+"]")
 
@@ -223,17 +223,19 @@ class Graph:
         destLabel=(dest,[0 for _ in range(self.nbClasses)],None)
         dest.addLabel(destLabel,1)
         T[1].append(destLabel)
-
+        cpt=0
         d=1
         while not (stop(T,Lres)):
+            cpt+=1
+            print(cpt)
             d=1-d
             label=T[d][0]
             T[d]=T[d][1:]
             owner=label[0]
             neighbours=self.getNeighbours(owner,d)
             for e in neighbours:
-                n=e.vertices[1]
-                newLabel=(e.vertices[1], cost(label,e,self.nbClasses) ,label)
+                n=e.vertices[1-d]
+                newLabel=(n, cost(label,e,self.nbClasses) ,label)
                 if not compListe(newLabel, n.liste[d]):
                     n.addLabel(newLabel,d)
                     T[d].append(newLabel)
@@ -308,7 +310,7 @@ def removeMin(T):
 def compListe(label, labelListe):
     """Returns True if label is dominated by at least one label in labelListe"""
     for i in range(len(labelListe)):
-        if vectorComp(labelListe[i][1],label):
+        if vectorComp(labelListe[i][1],label[1]):
             return True
     return False
 
