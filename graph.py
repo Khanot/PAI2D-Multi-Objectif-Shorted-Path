@@ -28,16 +28,29 @@ class Vertex:
                     return x,int(l[i:j])
             j+=1
     def addLabel(self, label, direction):
-        _, vector, _=label
-        isDominated=False
-        for i in range(len(self.liste[direction])):
-            _, vectorTemp, _=self.liste[direction][i]
-            if vectorComp(vector,vectorTemp):
-                self.liste[direction]=self.liste[direction][:i]+self.liste[direction][i+1:]
-                i-=1
-            isDominated= isDominated or vectorComp(vectorTemp,vector)
+        _, vector, _ = label
+        new_list = []
+        isDominated = False
+
+        for old_label in self.liste[direction]:
+            _, vectorTemp, _ = old_label
+
+            if vectorComp(vectorTemp, vector):
+                isDominated = True
+                break
+
+            if not vectorComp(vector, vectorTemp):
+                new_list.append(old_label)
+
         if not isDominated:
-            self.liste[direction].append(label)
+            new_list.append(label)
+            self.liste[direction] = new_list
+def labelToString(label):
+    res="("+label[0].label+","+str(label[1])+", "
+    if label[2]==None:
+        return res+"None)"
+    else:
+        return res+labelToString(label[2])+")"
 
 
 
@@ -145,13 +158,26 @@ class Graph:
         """
         Affiche le tableau des listes d'adjacence du graphe
         """
-        res=""
+
         for v in self.adj[0].keys():
             res=str(v.label)+" -> ["
             for e in self.adj[0][v]:
                 res+=e.vertices[1].label+"("+str(e.label[0])+","+e.label[1]+"), "
             print(res[:-2]+"]")
+    def print_etats_des_labels(self) -> None:
+        """
+        Affiche les differents sommets et leurs labels
+        """
 
+        for v in self.vertices:
+            res=str(v.label)+" -> AVANT ["
+            print(f"TEST, {len(v.liste[0])}")
+            for l in v.liste[0]:
+                res+=labelToString(l)+", "
+            res+="] APRES ["
+            for l in v.liste[1]:
+                res+=labelToString(l)+", "
+            print(res+"]")
 
     def nbVertices(self) -> int:
         """
@@ -226,8 +252,11 @@ class Graph:
         cpt=0
         d=1
         while not (stop(T,Lres)):
+            
             cpt+=1
-            print(cpt)
+            if cpt>15:
+                self.print_etats_des_labels()
+                exit()
             d=1-d
             label=T[d][0]
             T[d]=T[d][1:]
@@ -245,16 +274,11 @@ class Graph:
                             addResults(c,Lres)
 
         return Lres
-    def labelToString(self,label):
-        res="("+label[0].label+","+str(label[1])
-        if label[2]==None:
-            return res+"None)"
-        else:
-            return res+self.labelToString(label[2])+")"
+    
     def reconstruireChemin(self, L):
         res="("
         for l in L:
-            res+=self.labelToString(l)+"------"
+            res+=labelToString(l)+"------"
         return res+")"
     
 
@@ -315,6 +339,9 @@ def compListe(label, labelListe):
     return False
 
 def stop(T,Lres):
+    if not T[0] or not T[1]:
+        return True
+
     TminF=T[0][0][1]
     n=len(TminF)
     for i in range(1,len(T[0])):
@@ -334,7 +361,7 @@ def stop(T,Lres):
 def vectorComp(v1,v2):
 
     "Returns True if v1 domainates v2"
-    return np.all(np.array(v1)-np.array(v2)>=0)
+    return np.all(np.array(v1)-np.array(v2)<=0)
        
     
 
