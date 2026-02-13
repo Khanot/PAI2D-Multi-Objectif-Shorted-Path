@@ -95,42 +95,35 @@ class Graph:
             self.adj[1][v]=set()
         return v 
 
-    def add_edge(self, labelv1: str, labelv2: str,dist: int, classe: str) -> None:
-        """
-        Ajoute une arête à un graphe si labelv1 et labelv2 sont des labels de sommets du graphe.
-        """
-        vertex1 = Vertex(labelv1)
-        vertex2 = Vertex(labelv2)
-        if vertex1 == vertex2:
-            return #pas d'arêtes d'un sommet dans lui-même
-  
-        if vertex1 not in self.vertices or vertex2 not in self.vertices:
-            raise ValueError("vertex1 ou vertex2 ne sont pas des sommets du graphe.")
+    def add_edge(self, labelv1, labelv2, dist, classe):
 
-        if vertex2 in self.adj[0][vertex1]:
-            return #pas d'arêtes en double 
-        e=Edge(vertex1,vertex2,dist,classe)
+        vertex1 = next(v for v in self.vertices if v.label == labelv1)
+        vertex2 = next(v for v in self.vertices if v.label == labelv2)
+
+        if vertex1 == vertex2:
+            return
+
+        e = Edge(vertex1, vertex2, dist, classe)
+
         self.edges.add(e)
         self.adj[0][vertex1].add(e)
         self.adj[1][vertex2].add(e)
-        return 
+        def delete_vertex(self, l: str) -> None:
+            """
+            Supprime le sommet de label l du graphe.
+            """
+            vertex = Vertex(l)
+            if vertex not in self.vertices:
+                return #le sommet n'est déjà pas dans le graphe
 
-    def delete_vertex(self, l: str) -> None:
-        """
-        Supprime le sommet de label l du graphe.
-        """
-        vertex = Vertex(l)
-        if vertex not in self.vertices:
-            return #le sommet n'est déjà pas dans le graphe
+            self.adj = [(v, neighbors) for (v, neighbors) in self.adj if v != vertex]
+            self.edges = [e for e in self.edges if vertex not in e.vertices]
 
-        self.adj = [(v, neighbors) for (v, neighbors) in self.adj if v != vertex]
-        self.edges = [e for e in self.edges if vertex not in e.vertices]
-
-        for (_, neighbors) in self.adj:
-            if vertex in neighbors:
-                neighbors.remove(vertex) #suppression du sommet dans les voisins des autres sommets
-        self.vertices.remove(vertex)
-        return None
+            for (_, neighbors) in self.adj:
+                if vertex in neighbors:
+                    neighbors.remove(vertex) #suppression du sommet dans les voisins des autres sommets
+            self.vertices.remove(vertex)
+            return None
 
     def delete_vertices(self, label_set) -> None:
         """
@@ -171,7 +164,6 @@ class Graph:
 
         for v in self.vertices:
             res=str(v.label)+" -> AVANT ["
-            print(f"TEST, {len(v.liste[0])}")
             for l in v.liste[0]:
                 res+=labelToString(l)+", "
             res+="] APRES ["
@@ -249,14 +241,9 @@ class Graph:
         destLabel=(dest,[0 for _ in range(self.nbClasses)],None)
         dest.addLabel(destLabel,1)
         T[1].append(destLabel)
-        cpt=0
         d=1
         while not (stop(T,Lres)):
             
-            cpt+=1
-            if cpt>15:
-                self.print_etats_des_labels()
-                exit()
             d=1-d
             label=T[d][0]
             T[d]=T[d][1:]
@@ -361,7 +348,9 @@ def stop(T,Lres):
 def vectorComp(v1,v2):
 
     "Returns True if v1 domainates v2"
-    return np.all(np.array(v1)-np.array(v2)<=0)
+    v1=np.array(v1)
+    v2=np.array(v2)
+    return np.all(v1<=v2) and np.any(v1 < v2)
        
     
 
@@ -386,7 +375,13 @@ def generate_random_graph(name,nbVertex,probaEdge,nbClasses):
 
 G=generate_random_graph("test",10,0.5,5)
 G.print_al()
-res=G.DijkstraMultiObjBidirectionnel(next(iter(G.vertices)),next(iter(G.vertices)))
+import random
+
+vertices = list(G.vertices)
+origin, dest = random.sample(vertices, 2)  
+
+res = G.DijkstraMultiObjBidirectionnel(origin, dest)
+print(f"ORIGIN={origin.label},DEST={dest.label}")
 print(G.reconstruireChemin(res))
 
 
