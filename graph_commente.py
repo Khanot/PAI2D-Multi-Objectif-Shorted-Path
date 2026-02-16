@@ -1,6 +1,7 @@
 import numpy as np
 from typing import Tuple, List, Dict
 import random
+import math
 
 class Vertex:
 
@@ -119,7 +120,7 @@ class Label:
         
         return Label(new_vertex, [dist + vector[i] if i <= classe else vector[i] for i in range(nbClasses)], self, code)
     
-    def combine(self, labelListe, direction: int) -> List:
+    def combine(self, labelListe, direction: int, dist_max: float = math.inf) -> List:
         '''
         Retourne une liste des chemins combines entre une etiquette et une liste d'etiquettes.
         Un chemin : (etiquette depuis origine, etiquette depuis destination, vecteur de cout total)
@@ -128,6 +129,7 @@ class Label:
         :param label: etiquette 
         :param labelListe: liste d'etiquettes dans la direction opposee
         :param direction: direction de l'etiquette label
+        :param dist_max: distance maximale a ne pas depasser pour un chemin (distance totale pour premier critere)
         '''
         vecteurs_cout_finaux = []
         vec = self.vector
@@ -139,9 +141,9 @@ class Label:
             vecteurs_cout_finaux.append([vec[j] + vec_suivant[j] for j in range(nb_dim)])
 
         if direction == 0: # forward
-            return [(self, labelListe[i], vecteurs_cout_finaux[i]) for i in range(len(vecteurs_cout_finaux))]
+            return [(self, labelListe[i], vecteurs_cout_finaux[i]) for i in range(len(vecteurs_cout_finaux)) if vecteurs_cout_finaux[i][0] <= dist_max]
         # backward
-        return [(labelListe[i], self, vecteurs_cout_finaux[i]) for i in range(len(vecteurs_cout_finaux))]
+        return [(labelListe[i], self, vecteurs_cout_finaux[i]) for i in range(len(vecteurs_cout_finaux)) if vecteurs_cout_finaux[i][0] <= dist_max]
 
 
 class Graph:
@@ -164,20 +166,8 @@ class Graph:
             g.add_vertex(v.name) 
 
         # Copie des arcs
-        E = self.edges.copy()
-        for e in E: 
+        for e in self.edges: 
             g.add_edge(e.vertices[0].name, e.vertices[1].name, e.weight[0], e.weight[1]) 
-
-        # Copie des dictionnaires d'adjacence
-        dico_succ = {}
-        for (sommet, ens) in self.ajd[0].items():
-            dico_succ[sommet] = ens.copy()
-
-        dico_pred = {}
-        for (sommet, ens) in self.ajd[1].items():
-            dico_pred[sommet] = ens.copy()
-
-        g.adj = [dico_succ, dico_pred]
 
         return g
 
@@ -303,7 +293,6 @@ class Graph:
             else:
                 print(affiche + "]")
 
-
     def affiche_etats_avec_labels(self) -> None:
         """
         Affiche les differents sommets et leurs etiquettes associees (forward et backward).
@@ -328,7 +317,7 @@ class Graph:
         return [e for e in self.adj[dir][vertex]]
     
 
-    def DijkstraMultiObjBidirectionnel(self, origin: Vertex, dest: Vertex) -> List:
+    def DijkstraMultiObjBidirectionnel(self, origin: Vertex, dest: Vertex, dist_max: float = math.inf) -> List:
         '''
         Applique l'algorithme de Dijkstra multi-objectif bi-directionnel
         pour recuperer l'ensemble des chemins Pareto-optimaux 
@@ -372,6 +361,10 @@ class Graph:
                 newLabel = label.succ_label(voisin, e, self.nbClasses, code)
                 code += 1
 
+                # Si la distance parcourue > dist_max, on n'exploite pas l'etiquette
+                if newLabel.vector[0] > dist_max: 
+                    continue
+                
                 # Si la nouvelle etiquette n'est pas dominee par celles dans la liste de voisin, on l'ajoute
                 if not newLabel.dominated_by_list(voisin.label_list[d]): # dominated by list ca fait deja ca dans add label ?
                     voisin.addLabel(newLabel, d)
@@ -379,11 +372,45 @@ class Graph:
 
                     # Si la liste des etiquettes dans l'autre direction n'est pas vide, combiner les chemins
                     if voisin.label_list[1-d] != []:
-                        for c in newLabel.combine(voisin.label_list[1-d], d):
+                        for c in newLabel.combine(voisin.label_list[1-d], d, dist_max):
                             addResults(c, Lres)
 
         return Lres
-    
+
+    def DijkstraMultiObjBidirectionnelSeuil(self, origin: Vertex, dest: Vertex, seuil: float) -> List: 
+        '''
+        Applique l'algorithme de Dijkstra multi-objectif bi-directionnel
+        pour recuperer l'ensemble des chemins Pareto-optimaux 
+        allant du sommet origin au sommet dest
+        avec la longueur d'un chemin qui ne depasse pas 100 + seuil % du chemin optimal (mono-objectif).
+        
+        :param origin: sommet de depart
+        :param dest: sommet d'arrivee
+        :param seuil: pourcents supplementaires du chemin optimal 
+        '''
+        # Appliquer Dijkstra en version mono-objectif (distance totale) pour recuperer le chemin de taille minimale
+        copie_graphe = self.copy()
+
+        for v in copie_graphe.vertices: # recuperer les copies des sommets origine et destination
+            if v.name == origin.name:
+                oriA = v 
+            if v.name == dest.name:
+                destA = v
+
+        for e in copie_graphe.edges: 
+            e.weight = (e.weight[0], 'A')
+
+        liste_distance = copie_graphe.DijkstraMultiObjBidirectionnel(oriA, destA)
+
+        if not liste_distance: 
+            return []
+        distance = liste_distance[0][1][0] 
+
+        # Appliquer Dijkstra MO avec la distance a ne pas depasser 
+        distance_max: float = (1 + seuil/100) * distance 
+
+        return self.DijkstraMultiObjBidirectionnel(origin, dest, distance_max)
+
 
 ### PARETO DOMINANCE ###
 
@@ -512,6 +539,7 @@ def addResults(path, liste_res) -> None:
     :param liste_res: liste des chemins (liste_sommets, vecteur cout) deja decouverts
     """
     liste_sommets, vec = reconstruireChemin(path)
+    a_retirer = []
 
     # Pour tout chemin r dans Lres
     for r in liste_res:
@@ -523,13 +551,16 @@ def addResults(path, liste_res) -> None:
 
         # Si le chemin est domine par le nouveau chemin path, on retire r
         if dominates(vec, vecTemp):
-            liste_res.remove(r)
+            a_retirer.append(r)
 
         # Si le nouveau chemin est domine, on ne change rien a Lres
         if dominates(vecTemp, vec):
             return
     
-    liste_res.append((liste_sommets, vec))    
+    for ar in a_retirer:
+        liste_res.remove(ar)
+
+    liste_res.append((liste_sommets, vec))  
 
 
 ### GENERATION DE GRAPHES ALEATOIRES ###
@@ -561,11 +592,11 @@ def generate_random_graph(name: str, nbVertex: int, probaEdge: float, nbClasses:
 
 ### TEST SUR DES GRAPHES GENERES ALEATOIREMENT ###
 
-G = generate_random_graph("test", 5, 0.8, 3)
+G = generate_random_graph("test", 8, 0.6, 3)
 G.affiche_dico_adj()
 
 vertices = list(G.vertices)
 origin, dest = random.sample(vertices, 2) 
-res = G.DijkstraMultiObjBidirectionnel(origin, dest)
 print(f"ORIGINE = {origin.name}, ARRIVEE = {dest.name}")
-print(res)
+print("RES avec dist_max =", G.DijkstraMultiObjBidirectionnelSeuil(origin, dest, 10)) #seuil 10% supplémentaire
+print("RES sans =", G.DijkstraMultiObjBidirectionnel(origin, dest))
