@@ -8,7 +8,7 @@ import osmnx as ox
 def edge_to_class(data):
     """
     Convertit un edge OSMnx en classe qualitative A-Z.
-    Tu peux modifier la logique selon ton modèle.
+    
     """
 
     highway = data.get("highway", "")
@@ -53,7 +53,7 @@ def edge_to_class(data):
     if maxspeed > 50:
         score += 2
 
-    # clamp score 0–25
+    # clamp score 0–11
     score = max(0, min(score, 11))
 
     # convertir en lettre A-Z
